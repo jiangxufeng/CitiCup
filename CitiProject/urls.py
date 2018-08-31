@@ -15,9 +15,14 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
+from rest_framework.documentation import include_docs_urls
+from rest_framework.schemas import get_schema_view
+from rest_framework_swagger.renderers import SwaggerUIRenderer, OpenAPIRenderer
+schema_view = get_schema_view(title='Users API', renderer_classes=[OpenAPIRenderer, SwaggerUIRenderer],authentication_classes=[],permission_classes=[])
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^api/', include("account.urls")),
-    url(r'^api/', include("forum.urls"))
+    url(r'^api/', include("forum.urls")),
+    url(r'^docs/',include_docs_urls(title='Users API', renderer_classes=[OpenAPIRenderer, SwaggerUIRenderer],authentication_classes=[],permission_classes=[]))
 ]

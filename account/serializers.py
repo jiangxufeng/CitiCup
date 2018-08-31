@@ -7,6 +7,7 @@ from rest_framework.serializers import (
     ValidationError,
     IntegerField,
     Serializer,
+    CharField,
 )
 from .models import LoginUser
 from rewrite.exceptions import IllegalPhone
@@ -36,12 +37,32 @@ class UserRegisterSerializer(ModelSerializer):
 
     class Meta:
         model = LoginUser
-        fields = ('username', 'password', 'phone', 'code')
+        fields = ('username', 'password', 'phone', 'code',)
 
 
 # 用户登录(使用手机号接受验证码）
 class UserLoginSerializer(SendVerificationCodeSerializer):
     code = IntegerField()
+
+#用户登录(账号密码登录)
+class UserLogin2Serializer(ModelSerializer):
+    username = CharField(max_length=100)
+
+    class Meta:
+        model = LoginUser
+        fields = ('username','password')
+
+class UserUpdateSerializer(ModelSerializer):
+
+    class Meta:
+        model = LoginUser
+        fields = ('username','first_name','last_name','email',
+            'address','major','job','company','wealth')
+
+#logout
+class UserLogoutSerializer(Serializer):
+    pass
+
 
 
 # 用户信息
@@ -50,4 +71,11 @@ class UserDetailSerializer(ModelSerializer):
 
     class Meta:
         model = LoginUser
-        fields = ('username', 'uid', 'phone')
+        fields = ('username', 'uid')
+
+#登录用户详情
+class LoginUserDetailSerializer(ModelSerializer):
+
+    class Meta:
+        model = LoginUser
+        exclude = ['password','groups','user_permissions']

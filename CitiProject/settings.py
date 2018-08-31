@@ -25,7 +25,7 @@ SECRET_KEY = 'cn*%-2l2a6ok50(l9y2h@4jg8&i)1cre5)2^&e(^zry!%+cf_i'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'account',
     'forum',
     'corsheaders',
+    'rest_framework_swagger',
 ]
 
 MIDDLEWARE = [
@@ -48,7 +49,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -134,6 +135,8 @@ REST_FRAMEWORK = {
 
 }
 
+#REST_AUTH_SERIALIZERS = { 'USER_DETAILS_SERIALIZER':'users.serializers.CustomUserDetailsSerializer' } 
+
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
@@ -197,3 +200,7 @@ CORS_ALLOW_HEADERS = (
     'x-requested-with',
     'Pragma',
 )
+
+SWAGGER_SETTINGS = {
+'JSON_EDITOR': True,
+}

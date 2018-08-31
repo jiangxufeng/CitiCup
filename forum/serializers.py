@@ -9,10 +9,11 @@ from rest_framework.serializers import (
     IntegerField,
     HyperlinkedModelSerializer,
     HyperlinkedRelatedField,
-    ModelSerializer
+    ModelSerializer,
+    CharField,
 )
 
-from .models import Post, PostImage
+from .models import *
 
 
 # 上传图片
@@ -35,18 +36,23 @@ class PostImageReturnSerializer(ModelSerializer):
 
 # 发布帖子
 class PyPostPublishSerializer(ModelSerializer):
-    uid = IntegerField()
+
 
     class Meta:
         model = Post
-        fields = ('title', 'content', 'uid')
+        fields = ('title', 'content')
 
+class PyPostUpdateSerializer(ModelSerializer):
+
+    class Meta:
+        model = Post
+        fields = ('title','content')
 
 # 帖子详情
 class PyPostDetailSerializer(HyperlinkedModelSerializer):
-    owner = HyperlinkedRelatedField(view_name="user_detail", read_only=True)
+    owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
     username = SerializerMethodField()
-    pid = IntegerField(source='id')
+    pid = IntegerField(source='id',read_only=True)
     # headImg = SerializerMethodField()
     # likes = PostLikeReturnSerializer(many=True)
     # comments = PostCommentDetailSerializer(many=True)
@@ -59,3 +65,47 @@ class PyPostDetailSerializer(HyperlinkedModelSerializer):
 
     def get_username(self, obj):
         return obj.owner.username
+
+#登录用户观察自己是否点赞
+class LikeOrDisDetailSerializer(ModelSerializer):
+
+    class Meta:
+        model = LikeOrDis
+        fields = ('userprefer','created_at')
+
+
+class LikeOrDisListSerializer(HyperlinkedModelSerializer):
+    post_id = IntegerField(source='post.id')
+
+    class Meta:
+        model = LikeOrDis
+        lookup_field = 'post_id'
+        fields = ('user','userprefer','post_id')
+
+
+class LikeOrDisPostSerializer(ModelSerializer):
+
+    class Meta:
+        model = LikeOrDis
+        fields = ('post','userprefer')
+
+
+class PostCommentPostSerializer(ModelSerializer):
+
+    class Meta:
+        model = PostComments
+        fields = ('post','content')
+
+class PostCommentListSerializer(HyperlinkedModelSerializer):
+
+    class Meta:
+        model = PostComments
+        fields = ('content','userprefer','created_at','user')
+
+class PostCommentDetailSerializer(HyperlinkedModelSerializer):
+    
+    class Meta:
+        pass
+
+
+
