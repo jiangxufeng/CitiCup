@@ -116,7 +116,7 @@ REST_FRAMEWORK = {
     ),
 
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        'rest_framework.authentication.SessionAuthentication',
+        #'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
         # 'rest_framework.authentication.TokenAuthentication',
         # 'rewrite.authentication.ExpiringTokenAuthentication'
@@ -200,6 +200,7 @@ CORS_ALLOW_HEADERS = (
     'x-requested-with',
     'Pragma',
 )
+
 
 SWAGGER_SETTINGS = {
 'JSON_EDITOR': True,

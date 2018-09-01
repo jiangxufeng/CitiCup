@@ -27,13 +27,13 @@ from rest_framework.permissions import (
     IsAuthenticated,
 )
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly
-
+from rewrite.authentication import CsrfExemptSessionAuthentication
 
 # 发帖
 class PostPublishView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = PyPostPublishSerializer
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
 
     def post(self, request):
         '''已登录用户发帖'''
@@ -99,7 +99,7 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     '''
 
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsOwnerOrReadOnly,IsAuthenticated)
     serializer_class = PyPostDetailSerializer
     queryset = Post.objects.all()
@@ -140,7 +140,7 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
         已登录用户取消喜好
 
     '''
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = LikeOrDisDetailSerializer
     queryset = LikeOrDis.objects.all()
@@ -224,7 +224,7 @@ class LikeOrDisPostView(generics.CreateAPIView):
     
     '''
 
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = LikeOrDisPostSerializer
 
@@ -254,7 +254,7 @@ class PostCommentsPostView(generics.CreateAPIView):
         已登录用户对一个文章发布评论
     '''
 
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = PostCommentPostSerializer
 

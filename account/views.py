@@ -16,6 +16,7 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
 )
+from django.middleware.csrf import get_token
 from rewrite.exceptions import UserDoesNotExist, PhoneExist, UsernameExist
 from django.http import Http404
 from rest_framework import mixins
@@ -26,6 +27,7 @@ from rest_framework.authentication import (
     SessionAuthentication,
     BasicAuthentication,
     )
+from rewrite.authentication import CsrfExemptSessionAuthentication
 from django.core.exceptions import ObjectDoesNotExist
 import uuid
 import random
@@ -111,7 +113,7 @@ class UserUpdateView(generics.UpdateAPIView):
     put:
         用户更新信息，提交json中如不含相关字段则表示本字段不更改.username字段不能为空
     '''
-    authentication_classes = (SessionAuthentication,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsLoginUserOrReadOnly,)
     serializer_class = UserUpdateSerializer
     queryset = LoginUser.objects.all()
@@ -177,6 +179,7 @@ class UserLogin2View(generics.GenericAPIView):
 
             if user:
                 login(request, user)
+                #token = get_token(request)
                 msg = Response({
                         'error': 0,
                         'data': {"username": user.username, "uid": user.id},
@@ -233,9 +236,10 @@ class LoginUserDetailView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = LoginUserDetailSerializer
     queryset = LoginUser.objects.all()
+    authentication_classes = (CsrfExemptSessionAuthentication,)
 
     def get(self, request):
-        '''通过id获取用户详情'''
+        '''登录用户获取本人完整信息'''
         try:
             user = LoginUser.objects.get(id = request.user.id)
             cont = LoginUserDetailSerializer(user)
