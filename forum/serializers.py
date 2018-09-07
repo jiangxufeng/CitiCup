@@ -53,18 +53,18 @@ class PyPostDetailSerializer(HyperlinkedModelSerializer):
     owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
     username = SerializerMethodField()
     pid = IntegerField(source='id',read_only=True)
-    # headImg = SerializerMethodField()
-    # likes = PostLikeReturnSerializer(many=True)
-    # comments = PostCommentDetailSerializer(many=True)
-    # pid = IntegerField(source='id')
-    # images = PostImageReturnSerializer(many=True)
+    likesNum = SerializerMethodField()    
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid')
+        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'likesNum')
 
     def get_username(self, obj):
         return obj.owner.username
+
+    def get_likesNum(self, obj):
+        return obj.postpost.all().count()
+
 
 #登录用户观察自己是否点赞
 class LikeOrDisDetailSerializer(ModelSerializer):
