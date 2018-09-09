@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
 )
+from qiniu import Auth
 from django.shortcuts import get_object_or_404
 from .serializers import *
 from rest_framework.views import APIView
@@ -22,12 +23,17 @@ from rest_framework.authentication import (
     SessionAuthentication,
     BasicAuthentication,
     )
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
 )
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly
 from rewrite.authentication import CsrfExemptSessionAuthentication
+from rewrite.pagination import Pagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+
 
 # 发帖
 class PostPublishView(generics.GenericAPIView):
@@ -35,14 +41,28 @@ class PostPublishView(generics.GenericAPIView):
     serializer_class = PyPostPublishSerializer
     authentication_classes = (CsrfExemptSessionAuthentication,)
 
+    def get_tag(self, tag_id):
+        try:
+            return Tag.objects.get(id=tag_id)
+        except Tag.DoesNotExist:
+            raise NotFound("30004Not found the tag.")
+
     def post(self, request):
-        '''已登录用户发帖'''
+        # 已登录用户发帖
         serializer = PyPostPublishSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             title = serializer.validated_data['title']
             content = serializer.validated_data['content']
+            tagids = serializer.validated_data['tag'].split(";")
             passage = Post.objects.create(title=title, content=content, owner=request.user)
+            # passage.save()
+
+            for i in tagids:
+                tag = self.get_tag(int(i))
+                passage.tags.add(tag)
+
             passage.save()
+
             msg = Response({
                 'error': 0,
                 'data': PyPostDetailSerializer(passage, context={'request': request}).data,
@@ -51,61 +71,88 @@ class PostPublishView(generics.GenericAPIView):
             return msg
 
 
-# 
-# class PostDetailView(generics.RetrieveAPIView):
+# 获取全部帖子并展示
+class PostListView(generics.ListAPIView):
+    """
+       未认证用户允许获取
+    """
+    permission_classes = (AllowAny,)
+    # authentication_classes = (MyAuthentication, )
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+    filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
+    # 筛选图书，筛选条件：交换状态、地点、作者国家、语言、类型
+    # filter_fields = ('status', 'place', 'country', 'language', 'types')
+    # ordering_fields = ('level', 'place')
+    search_fields = ('title', )
 
-#     serializer_class = PyPostDetailSerializer
-#     queryset = Post.objects.all()
-#     permission_classes = (IsOwnerOrReadOnly,)
-#     authentication_classes = (SessionAuthentication,)
+    def get_queryset(self):
+        queryset = Post.objects.all()
+        queryset = self.get_serializer_class().setup_eager_loading(queryset)
+        return queryset.order_by('-created_at')
 
-
-#     def get(self, request, *args, **kwargs):
-#         '''返回一个帖子详情'''
-
-#         try:
-#             cont = self.retrieve(request, *args, **kwargs)
-#             msg = Response(data={
-#                 'error': 0,
-#                 'data': cont.data,
-#                 'message': 'Success to get the info.'
-#             }, status=HTTP_200_OK)
-#         except Http404:  # 获取失败，没有找到对应数据
-#             raise FoundPostFailed
-#         else:
-#             return msg
-
-#     def delete(self, request, pk):
-#         '''已登录用户根据id删除一个帖子'''
-#         obj = self.get_object() 
-#         self.check_object_permissions(self.request, obj)
-#         try:
-#             Post.objects.get(pk=pk).delete()
-#             return Response(status=HTTP_204_NO_CONTENT)
-#         except Http404:
-#             raise FoundPostFailed 
 
 # 某个帖子详情
-class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
-    '''
-    get:
-        获取文章信息
-
-    put:
-        登录用户更新本人所发文章内容 
-
-    delete:
-        登录用户删除本人整篇文章
-
-    '''
-
+class PostDetailView(generics.RetrieveDestroyAPIView):
+    """
+       未认证用户允许获取，已认证用户允许获取与删除自己的帖子
+    """
+    permission_classes = (IsOwnerOrReadOnly,)
     authentication_classes = (CsrfExemptSessionAuthentication,)
-    permission_classes = (IsOwnerOrReadOnly,IsAuthenticated)
     serializer_class = PyPostDetailSerializer
     queryset = Post.objects.all()
-    lookup_field = 'id'
-    lookup_url_kwarg = 'pid'
 
+    def get(self, request, *args, **kwargs):
+        try:
+            cont = self.retrieve(request, *args, **kwargs)
+            msg = Response(data={
+                'error': 0,
+                'data': cont.data,
+            }, status=HTTP_200_OK)
+        except Http404:  # 获取失败，没有找到对应数据
+            raise FoundPostFailed
+        else:
+            return msg
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+# 某个帖子详情
+# class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
+#     '''
+#     get:
+#         获取文章信息
+#
+#     put:
+#         登录用户更新本人所发文章内容
+#
+#     delete:
+#         登录用户删除本人整篇文章
+#
+#     '''
+#
+#     authentication_classes = (CsrfExemptSessionAuthentication,)
+#     permission_classes = (IsOwnerOrReadOnly,IsAuthenticated)
+#     serializer_class = PyPostDetailSerializer
+#     queryset = Post.objects.all()
+#     lookup_field = 'id'
+#     lookup_url_kwarg = 'pid'
+
+
+# 返回登录用户发布的所有帖子
+class PostOfUserListView(generics.ListAPIView):
+    """
+       返回已认证用户的所有帖子
+    """
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Post.objects.filter(owner=user)
+        return queryset.order_by('-created_at')
 
 
 # 上传图片
@@ -145,8 +192,7 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = LikeOrDisDetailSerializer
     queryset = LikeOrDis.objects.all()
 
-
-    def get(self,request,pid):   
+    def get(self, request, pid):
 
         queryset = LikeOrDis.objects.filter(post_id = pid,user = request.user)
         s = LikeOrDisDetailSerializer(queryset,many=True,context={'request': request})
@@ -177,7 +223,6 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
             }, HTTP_400_BAD_REQUEST)
         return msg
 
-
     def delete(self,request,pid):
         try:
             s = LikeOrDis.objects.get(post_id=pid ,user_id = request.user.id)
@@ -195,8 +240,6 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
         return msg
 
 
-
-
 class LikeOrDisListView(generics.ListAPIView):
     '''
     get:
@@ -208,12 +251,10 @@ class LikeOrDisListView(generics.ListAPIView):
     serializer_class = LikeOrDisListSerializer
     authentication_classes = ()
 
-
     def get(self,request,pid):
         queryset = LikeOrDis.objects.filter(post_id = pid)
         s = LikeOrDisListSerializer(queryset,many=True,context={'request': request})
         return Response(s.data)
-
 
 
 class LikeOrDisPostView(generics.CreateAPIView):
@@ -228,14 +269,13 @@ class LikeOrDisPostView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = LikeOrDisPostSerializer
 
-
     def perform_create(self, serializer):
-        serializer.save(user = self.request.user)
+        serializer.save(user=self.request.user)
 
-    def post(self,request, *args, **kwargs):
-        post_id = request.data.get('post','')
+    def post(self, request, *args, **kwargs):
+        post_id = request.data.get('post', '')
         user = request.user
-        res = LikeOrDis.objects.filter(user=user,post_id=post_id)
+        res = LikeOrDis.objects.filter(user=user, post_id=post_id)
         if res:
             msg = Response(data={
                 'error': 0000,
@@ -244,8 +284,6 @@ class LikeOrDisPostView(generics.CreateAPIView):
             return msg
         else:
             return self.create(request, *args, **kwargs)
-
-
 
 
 class PostCommentsPostView(generics.CreateAPIView):
@@ -273,11 +311,35 @@ class PostCommentsListView(generics.GenericAPIView):
     serializer_class = PostCommentListSerializer
     authentication_classes = ()
 
-
-    def get(self,request,post_id):
+    def get(self, request, post_id):
         queryset = PostComments.objects.filter(post_id = post_id)
         s = PostCommentListSerializer(queryset,many=True,context={'request': request})
         return Response(s.data)
 
 
+# 返回所有的标签
+class TagListView(generics.ListAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = TagDetailSerializer
+    pagination_class = Pagination
 
+    def get_queryset(self):
+        quertset = Tag.objects.all()
+        return quertset
+
+
+class TokenReturnView(APIView):
+    permission_classes = (AllowAny,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+
+    def get(self, request):
+        q = Auth('7mn1axVj1LKGbSOpXI6RvqRkdI-zzzE2hnHwOK8I', '8AhoPQJH7U3GR-Cq_5slGVvzbXvF4P7F-P1Shhpv')
+        bucket_name = 'android'
+        key = "test.png"
+        policy = {
+            "scope": "android:test.png",
+        }
+        token = q.upload_token(bucket_name, key, 3600, policy)
+        return Response({
+            'uptoken': token
+        }, HTTP_200_OK)

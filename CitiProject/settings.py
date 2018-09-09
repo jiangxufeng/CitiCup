@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'forum',
     'corsheaders',
     'rest_framework_swagger',
+    'django_filters',
 ]
 
 MIDDLEWARE = [

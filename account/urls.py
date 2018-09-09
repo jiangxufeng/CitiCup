@@ -13,7 +13,7 @@ urlpatterns = [
     url(r'^users/login_code/', UserLoginView.as_view(), name="user_login_code"),
     url(r'^users/login_passwd/', UserLogin2View.as_view(), name="user_login_passwd"),
     url(r'^users/(?P<pk>\d+)/$', UserDetailView.as_view(), name="loginuser-detail"),
-    url(r'^users/detail/$', LoginUserDetailView.as_view(), name="logedinuser-detail"),
-    url(r'^users/logout',UserLogoutView.as_view(),name="user_logout"),
-    url(r'^users/update/(?P<uid>\d+)/$',UserUpdateView.as_view(), name="user-update"),
+    url(r'^users/$', LoginUserDetailView.as_view(), name="logedinuser-detail"),
+    url(r'^users/logout', UserLogoutView.as_view(),name="user_logout"),
+    url(r'^users/update/(?P<uid>\d+)/$', UserUpdateView.as_view(), name="user-update"),
 ]

@@ -22,8 +22,9 @@ class Post(models.Model):
     # 发帖时间
     created_at = models.DateTimeField(auto_now_add=True)
     # view times
-    viewtimes = models.IntegerField(default=0,null=False)
-
+    viewtimes = models.IntegerField(default=0, null=False)
+    # 标签
+    tags = models.ManyToManyField("Tag", verbose_name="tags", null=True)
 
     def __str__(self):
         return self.title
@@ -40,18 +41,22 @@ class PostImage(models.Model):
     def get_img_url(self):
         return 'http://p9260z3xy.bkt.clouddn.com/' + str(self.image)
 
+
+# 标签
 class Tag(models.Model):
-    tag_name = models.CharField(max_length=36,null=False)
-    bio = models.CharField(max_length=256)
+    # 标签名
+    name = models.CharField(max_length=36, null=False, verbose_name="name")
+    # 标签信息
+    info = models.FloatField(default=0.0, null=False, verbose_name="info")
 
     def __str__(self):
-        return self.tag_name
+        return self.name
 
 
 class PostComments(models.Model):
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='postuser',null=False,blank=False)
-    post = models.ForeignKey("Post",related_name = 'postpost',null=False,blank=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='postuser', null=False, blank=False)
+    post = models.ForeignKey("Post", related_name='comments', null=False, blank=False)
     content = models.TextField(verbose_name="postContent", default="")
     created_at = models.DateTimeField(auto_now=True)
     userprefer = models.IntegerField(default=0)
@@ -59,10 +64,11 @@ class PostComments(models.Model):
     def __str__(self):
         return self.user.username + self.post.title
 
+
 class LikeOrDis(models.Model):
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='likeuser',null=False,blank=False)
-    post = models.ForeignKey("Post",related_name = 'likepost',null=False,blank=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='likeuser', null=False, blank=False)
+    post = models.ForeignKey("Post", related_name='likes', null=False, blank=False)
     userprefer = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now=True)
 
@@ -70,7 +76,27 @@ class LikeOrDis(models.Model):
         return str(self.id)
 
     class Meta:
-        unique_together = (('user','post'),)
+        unique_together = (('user', 'post'),)
 
 
+# 历史记录
+class History(models.Model):
+    OPERATION_CHOICE = (
+        (1, '发帖'),
+        (2, '点赞'),
+        (3, '踩'),
+        (4, '评论')
+    )
+    # 用户
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='history')
+    # 操作
+    operation = models.IntegerField(default=1, choices=OPERATION_CHOICE, verbose_name="operation")
+    # 收益
+    income = models.FloatField(default=0.0, verbose_name='income')
+    # 操作对象
+    to = models.ForeignKey(Post, verbose_name='object')
+    # 标签
+    tags = models.CharField(max_length=144, default="", verbose_name="tags")
 
+    def __str__(self):
+        return self.user.username

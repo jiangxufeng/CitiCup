@@ -34,6 +34,7 @@ import random
 import json
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly,IsLoginUserOrReadOnly
 
+
 # 发送验证码
 class SendVerificationCodeView(generics.GenericAPIView):
     permission_classes = (AllowAny,)
@@ -108,11 +109,12 @@ class UserRegisterView(generics.GenericAPIView):
                         }, HTTP_400_BAD_REQUEST)
                     return msg
 
+
 class UserUpdateView(generics.UpdateAPIView):
-    '''
+    """
     put:
         用户更新信息，提交json中如不含相关字段则表示本字段不更改.username字段不能为空
-    '''
+    """
     authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsLoginUserOrReadOnly,)
     serializer_class = UserUpdateSerializer
@@ -192,36 +194,40 @@ class UserLogin2View(generics.GenericAPIView):
                     }, HTTP_400_BAD_REQUEST)
             return msg
 
-#logout
+
+# logout
 class UserLogoutView(generics.GenericAPIView):
+    """
+        注销
+    """
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = UserLogoutSerializer
-    
 
-    def get(self,request):
-        '''logout'''
-        #return Response(request.user)
+    def get(self, request):
+        # return Response(request.user)
         logout(request)
         msg = Response({
-            'error':0,
+            'error': 0,
             'message': 'Success to logout.'
-            },HTTP_200_OK)
+            }, HTTP_200_OK)
         return msg
 
 
 # 获取用户详情
 class UserDetailView(generics.GenericAPIView):
+    """
+        获取用户对外公布的信息
+    """
 
     # 该权限为当前登录用户只能获取自己信息
     permission_classes = (AllowAny,)
     serializer_class = UserDetailSerializer
 
-
     def get(self, request, pk):
-        '''通过id获取用户详情'''
+
         try:
-            user = LoginUser.objects.get(pk = pk)
+            user = LoginUser.objects.get(pk=pk)
             cont = UserDetailSerializer(user)
             msg = Response(data={
                 'error': 0,
@@ -232,16 +238,19 @@ class UserDetailView(generics.GenericAPIView):
             raise UserDoesNotExist
         return msg
 
+
 class LoginUserDetailView(generics.GenericAPIView):
+    """
+        获取当前登录用户的完整信息
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = LoginUserDetailSerializer
     queryset = LoginUser.objects.all()
     authentication_classes = (CsrfExemptSessionAuthentication,)
 
     def get(self, request):
-        '''登录用户获取本人完整信息'''
         try:
-            user = LoginUser.objects.get(id = request.user.id)
+            user = request.user
             cont = LoginUserDetailSerializer(user)
             msg = Response(data={
                 'error': 0,

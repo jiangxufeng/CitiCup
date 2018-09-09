@@ -34,39 +34,78 @@ class PostImageReturnSerializer(ModelSerializer):
         fields = ('image',)
 
 
+# 标签
+class TagReturnSerializer(ModelSerializer):
+
+    class Meta:
+        model = Tag
+        fields = ('name',)
+
+
 # 发布帖子
 class PyPostPublishSerializer(ModelSerializer):
-
+    tag = CharField()
 
     class Meta:
         model = Post
-        fields = ('title', 'content')
+        fields = ('title', 'content', 'tag')
+
 
 class PyPostUpdateSerializer(ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ('title','content')
+        fields = ('title', 'content')
+
+
+# 帖子列表
+class PostListSerializer(HyperlinkedModelSerializer):
+    owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
+    likesNum = SerializerMethodField()
+    username = SerializerMethodField()
+    commentsNum = SerializerMethodField()
+    pid = IntegerField(source='id')
+
+    @staticmethod
+    def setup_eager_loading(queryset):
+        queryset = queryset.select_related('owner')
+        return queryset
+
+    class Meta:
+        model = Post
+        fields = ('owner', 'username', 'title', 'content',
+                  'created_at', 'pid', 'likesNum', 'commentsNum')
+
+    def get_likesNum(self, obj):
+        return obj.likes.all().count()
+
+    def get_commentsNum(self, obj):
+        return obj.comments.all().count()
+
+    def get_username(self, obj):
+        return obj.owner.username
+
 
 # 帖子详情
 class PyPostDetailSerializer(HyperlinkedModelSerializer):
     owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
     username = SerializerMethodField()
     pid = IntegerField(source='id',read_only=True)
-    likesNum = SerializerMethodField()    
+    tags = TagReturnSerializer(many=True)
+    likesNum = SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'likesNum')
+        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'likesNum', 'tags')
 
     def get_username(self, obj):
         return obj.owner.username
 
     def get_likesNum(self, obj):
-        return obj.postpost.all().count()
+        return obj.likes.all().count()
 
 
-#登录用户观察自己是否点赞
+# 登录用户观察自己是否点赞
 class LikeOrDisDetailSerializer(ModelSerializer):
 
     class Meta:
@@ -94,13 +133,15 @@ class PostCommentPostSerializer(ModelSerializer):
 
     class Meta:
         model = PostComments
-        fields = ('post','content')
+        fields = ('post', 'content')
+
 
 class PostCommentListSerializer(HyperlinkedModelSerializer):
 
     class Meta:
         model = PostComments
-        fields = ('content','userprefer','created_at','user')
+        fields = ('content', 'userprefer', 'created_at', 'user')
+
 
 class PostCommentDetailSerializer(HyperlinkedModelSerializer):
     
@@ -108,4 +149,9 @@ class PostCommentDetailSerializer(HyperlinkedModelSerializer):
         pass
 
 
+# 返回所有标签
+class TagDetailSerializer(ModelSerializer):
 
+    class Meta:
+        model = Tag
+        fields = ("name", "id")
