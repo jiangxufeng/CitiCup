@@ -83,12 +83,11 @@ WSGI_APPLICATION = 'CitiProject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'CITI',
+        'NAME': 'CITI2',
         'USER': 'citi',
         'PASSWORD':'122885090a',
         'HOST':'111.231.226.60',
         'PORT':'3306',
-
     }
 }
 

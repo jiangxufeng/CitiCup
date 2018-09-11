@@ -61,10 +61,10 @@ class PyPostUpdateSerializer(ModelSerializer):
 # 帖子列表
 class PostListSerializer(HyperlinkedModelSerializer):
     owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
-    likesNum = SerializerMethodField()
     username = SerializerMethodField()
     commentsNum = SerializerMethodField()
     pid = IntegerField(source='id')
+    tags = TagReturnSerializer(many=True)
 
     @staticmethod
     def setup_eager_loading(queryset):
@@ -73,8 +73,8 @@ class PostListSerializer(HyperlinkedModelSerializer):
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content',
-                  'created_at', 'pid', 'likesNum', 'commentsNum')
+        fields = ('owner', 'username', 'title', 'content','tags',
+                  'created_at', 'pid', 'like', 'diss','commentsNum')
 
     def get_likesNum(self, obj):
         return obj.likes.all().count()
@@ -92,11 +92,10 @@ class PyPostDetailSerializer(HyperlinkedModelSerializer):
     username = SerializerMethodField()
     pid = IntegerField(source='id',read_only=True)
     tags = TagReturnSerializer(many=True)
-    likesNum = SerializerMethodField()
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'likesNum', 'tags')
+        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'like','diss', 'tags')
 
     def get_username(self, obj):
         return obj.owner.username

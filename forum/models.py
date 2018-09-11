@@ -25,6 +25,10 @@ class Post(models.Model):
     viewtimes = models.IntegerField(default=0, null=False)
     # 标签
     tags = models.ManyToManyField("Tag", verbose_name="tags", null=True)
+    # like
+    like = models.IntegerField(default=0,null=False)
+    # dislike
+    diss = models.IntegerField(default=0,null=False)
 
     def __str__(self):
         return self.title

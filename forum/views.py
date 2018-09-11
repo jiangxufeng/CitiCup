@@ -28,11 +28,15 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
 )
+from django.http import HttpResponse
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly
 from rewrite.authentication import CsrfExemptSessionAuthentication
 from rewrite.pagination import Pagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from django.db.models import F
+from datetime import datetime,timedelta
+from django.db.models import Count
 
 
 # 发帖
@@ -58,9 +62,15 @@ class PostPublishView(generics.GenericAPIView):
             # passage.save()
 
             for i in tagids:
-                tag = self.get_tag(int(i))
-                passage.tags.add(tag)
-
+                try:
+                    tag = self.get_tag(int(i))
+                    passage.tags.add(tag)  
+                except:
+                    msg = Response({
+                    'error': 1,
+                    'message': 'Tag(Tag id,int) is separated by comma'
+                    }, HTTP_400_BAD_REQUEST)
+                    return msg
             passage.save()
 
             msg = Response({
@@ -154,6 +164,67 @@ class PostOfUserListView(generics.ListAPIView):
         queryset = Post.objects.filter(owner=user)
         return queryset.order_by('-created_at')
 
+class PostNewListView(generics.ListAPIView):
+    '''新发布的文章，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页链接。'''
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+
+    def get_queryset(self):
+        queryset = Post.objects.all().order_by('-created_at')[:40]
+        return queryset
+
+class PostHotListView(generics.ListAPIView):
+    '''最热文章(点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页 链接。'''
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+
+    def get_queryset(self):
+
+        queryset = Post.objects.all().order_by('like')[:40]
+        return queryset
+
+class PostRecentHotListView(generics.ListAPIView):
+    '''热榜文章(最近三天点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中 有下一页链接。'''
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+
+    def get_queryset(self):
+
+        today = datetime.now()
+        
+        likes = LikeOrDis.objects.filter(created_at__range=(today - timedelta(days=3),today)). \
+            exclude(userprefer__contains='-').values('post_id'). \
+            annotate(count=Count('id')).order_by('-count').values('post')
+
+        post_ids = [] 
+        for i in likes:
+            post_ids.append(i['post'])
+
+        queryset = Post.objects.filter(id__in=post_ids).order_by('-like')[:40] 
+        return queryset
+
+
+class PostTagListView(APIView):
+    '''根据 tag_id 获取拥有该tag的所有文章'''
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+    serializer_class = PostListSerializer
+    pagination_class = Pagination
+
+    def get_tag(self,tag_id):
+        try:
+            return Tag.objects.get(id=tag_id)
+        except Tag.DoesNotExist:
+            raise NotFound("30004Not found the tag.")
+
+    def get(self,request,tag_id):
+        tag = self.get_tag(int(tag_id))
+        queryset = Post.objects.filter(tags = tag_id)
+        s = PostListSerializer(queryset,many=True,context={'request': request})
+        return Response(s.data)
+
 
 # 上传图片
 class PostImageUploadView(generics.GenericAPIView):
@@ -203,10 +274,25 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
         s = LikeOrDisDetailSerializer(data=request.data)
         
         if s.is_valid(raise_exception=True):
-            lod = LikeOrDis.objects.filter(post_id=pid ,user_id = request.user.id)
+            lod = LikeOrDis.objects.filter(post_id=pid ,user_id=request.user.id)
             if lod:
+
+                prefer_old = LikeOrDis.objects.get(user=request.user, post_id=pid).userprefer
                 userprefer = s.validated_data['userprefer']
                 lod.update(userprefer = userprefer)
+
+                check = userprefer * prefer_old
+                if check<0:
+                    if userprefer>0:
+                        Post.objects.filter(id=pid).update(like=F('like')+1)
+                        Post.objects.filter(id=pid).update(diss=F('diss')-1)
+
+                    else:
+                        Post.objects.filter(id=pid).update(like=F('like')-1)
+                        Post.objects.filter(id=pid).update(diss=F('diss')+1)
+
+
+
                 msg = Response({
                     'error': 0,
                     'message': 'Success to update'
@@ -225,8 +311,14 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def delete(self,request,pid):
         try:
-            s = LikeOrDis.objects.get(post_id=pid ,user_id = request.user.id)
+            prefer_old = LikeOrDis.objects.get(user=request.user, post_id=pid).userprefer
+            s = LikeOrDis.objects.get(post_id=pid,user_id=request.user.id)
             s.delete()
+            
+            if prefer_old>0:
+                Post.objects.filter(id=pid).update(like=F('like')-1)
+            else:
+                Post.objects.filter(id=pid).update(diss=F('diss')-1)
             msg = Response({
                     'error': 0,
                     'message': 'Success to delete'
@@ -244,8 +336,8 @@ class LikeOrDisListView(generics.ListAPIView):
     '''
     get:
         列出这篇文章所有点赞/踩的人
-
     '''
+
     permission_classes = (AllowAny,)
     queryset = LikeOrDis.objects.all()
     serializer_class = LikeOrDisListSerializer
@@ -270,12 +362,21 @@ class LikeOrDisPostView(generics.CreateAPIView):
     serializer_class = LikeOrDisPostSerializer
 
     def perform_create(self, serializer):
+
+        post = serializer.validated_data['post']
+        prefer = serializer.validated_data['userprefer']
+
+        if prefer>0:
+            Post.objects.filter(id=post.id).update(like=F('like')+1)
+        else:
+            Post.objects.filter(id=post.id).update(diss=F('diss')+1)
         serializer.save(user=self.request.user)
 
     def post(self, request, *args, **kwargs):
         post_id = request.data.get('post', '')
         user = request.user
         res = LikeOrDis.objects.filter(user=user, post_id=post_id)
+
         if res:
             msg = Response(data={
                 'error': 0000,
@@ -335,11 +436,12 @@ class TokenReturnView(APIView):
     def get(self, request):
         q = Auth('7mn1axVj1LKGbSOpXI6RvqRkdI-zzzE2hnHwOK8I', '8AhoPQJH7U3GR-Cq_5slGVvzbXvF4P7F-P1Shhpv')
         bucket_name = 'android'
-        key = "test.png"
+        key = ""
         policy = {
-            "scope": "android:test.png",
+            "scope": "android",
         }
         token = q.upload_token(bucket_name, key, 3600, policy)
+        print(request.data)
         return Response({
             'uptoken': token
         }, HTTP_200_OK)
