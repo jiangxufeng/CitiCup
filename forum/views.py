@@ -37,7 +37,7 @@ from rest_framework import filters
 from django.db.models import F
 from datetime import datetime,timedelta
 from django.db.models import Count
-
+import random
 
 # 发帖
 class PostPublishView(generics.GenericAPIView):
@@ -434,14 +434,16 @@ class TokenReturnView(APIView):
     authentication_classes = (CsrfExemptSessionAuthentication,)
 
     def get(self, request):
+        table = "0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
         q = Auth('7mn1axVj1LKGbSOpXI6RvqRkdI-zzzE2hnHwOK8I', '8AhoPQJH7U3GR-Cq_5slGVvzbXvF4P7F-P1Shhpv')
         bucket_name = 'android'
-        key = ""
+        pkey = "Posts/" + "".join(random.sample(table, 16)) + ".jpg"
+        key = None
         policy = {
             "scope": "android",
+            "saveKey": pkey,
         }
         token = q.upload_token(bucket_name, key, 3600, policy)
-        print(request.data)
         return Response({
             'uptoken': token
         }, HTTP_200_OK)
