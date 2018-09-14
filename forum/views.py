@@ -166,7 +166,7 @@ class PostOfUserListView(generics.ListAPIView):
 
 class PostNewListView(generics.ListAPIView):
     '''新发布的文章，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页链接。'''
-    authentication_classes = (CsrfExemptSessionAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = PostListSerializer
     pagination_class = Pagination
 
@@ -176,7 +176,7 @@ class PostNewListView(generics.ListAPIView):
 
 class PostHotListView(generics.ListAPIView):
     '''最热文章(点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页 链接。'''
-    authentication_classes = (CsrfExemptSessionAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = PostListSerializer
     pagination_class = Pagination
 
@@ -187,7 +187,7 @@ class PostHotListView(generics.ListAPIView):
 
 class PostRecentHotListView(generics.ListAPIView):
     '''热榜文章(最近三天点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中 有下一页链接。'''
-    authentication_classes = (CsrfExemptSessionAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = PostListSerializer
     pagination_class = Pagination
 
@@ -209,7 +209,7 @@ class PostRecentHotListView(generics.ListAPIView):
 
 class PostTagListView(APIView):
     '''根据 tag_id 获取拥有该tag的所有文章'''
-    authentication_classes = (CsrfExemptSessionAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = PostListSerializer
     pagination_class = Pagination
 

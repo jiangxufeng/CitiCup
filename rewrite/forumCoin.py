@@ -7,7 +7,12 @@ Repeat_Factor = 80
 
 
 def new_issues(user, tags, degree):
-
+    """
+    :param user:  用户对象
+    :param tags:   前段传入的tag
+    :param degree:  程度
+    :return: 小号的论坛币
+    """
     if not tags:
         return None
 
@@ -15,10 +20,11 @@ def new_issues(user, tags, degree):
         return None
 
     tags = tags.split(";")
-    if isinstance(user.tags, dict):
-        user_tags = user.tags
+
+    if isinstance(user.posttags, dict):
+        user_tags = user.posttags
     else:
-        user_tags = eval(user.tags)
+        user_tags = eval(user.posttags)
 
     length = len(tags)
 
@@ -32,10 +38,10 @@ def new_issues(user, tags, degree):
 
         Interacting_Consume_Factor.append(Repeat_Factor ** (-user_tags[tags[i]]))
 
-    user.tags = user_tags
+    user.posttags = user_tags
     user.save()
 
-    print(Interacting_Consume_Factor)
+    #print(Interacting_Consume_Factor)
     return sum([Decimal(i)*Decimal(degree)*user.wealth for i in Interacting_Consume_Factor])
 
 
