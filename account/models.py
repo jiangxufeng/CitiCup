@@ -26,6 +26,7 @@ class LoginUser(AbstractUser):
     forumcoin = models.IntegerField(blank=True, default=0)
     risk_preference = models.IntegerField(choices=RISK_CHOICE, default=0)
 
+
     class Meta:
         db_table = 'LoginUser'
         ordering = ['-id']

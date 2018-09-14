@@ -48,7 +48,7 @@ class SendVerificationCodeView(generics.GenericAPIView):
             business_id = uuid.uuid1()
             params = json.dumps({"code": code})
             try:
-                send_sms(business_id, phone, "汉姆", "SMS_142148460", params)  # 发送验证码
+                send_sms(business_id, phone, "计6", "SMS_142148460", params)  # 发送验证码
                 request.session['verifycode'] = code
                 msg = Response(status=HTTP_204_NO_CONTENT)
             except:

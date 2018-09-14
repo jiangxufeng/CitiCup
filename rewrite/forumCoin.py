@@ -1,52 +1,66 @@
 # -*- coding:utf-8 -*-
 
-from account.models import LoginUser
 from decimal import Decimal
 
-Repeat_Factor = 80
+Repeat_Factor = 30
+Intention_Factor = 50
 
 
-def new_issues(user, tags, degree):
-    """
-    :param user:  用户对象
-    :param tags:   前段传入的tag
-    :param degree:  程度
-    :return: 小号的论坛币
-    """
-    if not tags:
-        return None
+class ForumCoin(object):
 
-    if not degree:
-        return None
+    def __init__(self, user):
+        self.user = user
 
-    tags = tags.split(";")
+    # 发布新帖子
+    def get_interacting_consume_factor(self, tags, types):
 
-    if isinstance(user.posttags, dict):
-        user_tags = user.posttags
-    else:
-        user_tags = eval(user.posttags)
+        if not tags:
+            return None
 
-    length = len(tags)
+        types = ["post", "like", "comment"][types]
+        u_t = self.user.tags
 
-    Interacting_Consume_Factor = []
-
-    for i in range(length):
-        if tags[i] in user_tags:
-            user_tags[tags[i]] += 1
+        tags = tags.split(";")
+        if isinstance(u_t, dict):
+            user_tags = u_t
         else:
-            user_tags[tags[i]] = 1
+            user_tags = eval(u_t)
 
-        Interacting_Consume_Factor.append(Repeat_Factor ** (-user_tags[tags[i]]))
+        length = len(tags)
 
-    user.posttags = user_tags
-    user.save()
+        interacting_consume_factor = []
 
-    #print(Interacting_Consume_Factor)
-    return sum([Decimal(i)*Decimal(degree)*user.wealth for i in Interacting_Consume_Factor])
+        for i in range(length):
+            if tags[i] in user_tags:
+                user_tags[types][tags[i]] += 1
+            else:
+                user_tags[types][tags[i]] = 1
 
+            interacting_consume_factor.append(Repeat_Factor ** (-user_tags[types][tags[i]]))
 
-if __name__ == "__main__":
-    user = LoginUser.objects.get(username='qwer1234')
-    user.wealth = 1000
-    user.tags = {'1': 3}
-    user.save()
+        self.user.tags = user_tags
+        self.user.save()
+        return interacting_consume_factor
+
+    # 发布新帖子
+    def new_issues(self, tags, degree):
+
+        interacting_consume_factor = self.get_interacting_consume_factor(tags, 0)
+
+        return sum([Decimal(i)*Decimal(degree)*self.user.wealth for i in interacting_consume_factor])
+
+    # 点赞
+    def likes(self, tags, click_num):
+
+        interacting_consume_factor = self.get_interacting_consume_factor(tags, 1)
+
+        intention_degree = Intention_Factor * click_num
+
+        return sum([Decimal(i) * Decimal(intention_degree) * self.user.wealth for i in interacting_consume_factor])
+
+    # 评论
+    def comment(self, tags, degree):
+
+        interacting_consume_factor = self.get_interacting_consume_factor(tags, 2)
+
+        return sum([Decimal(i) * Decimal(degree) * self.user.wealth for i in interacting_consume_factor])
