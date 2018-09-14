@@ -15,14 +15,14 @@ def new_issues(user, tags, degree):
         return None
 
     tags = tags.split(";")
-    if isinstance(user.tags, dict):
-        user_tags = user.tags
+    if isinstance(user.posttags, dict):
+        user_tags = user.posttags
     else:
-        user_tags = eval(user.tags)
+        user_tags = eval(user.posttags)
 
     length = len(tags)
 
-    Interacting_Consume_Factor = []
+    interacting_consume_factor = []
 
     for i in range(length):
         if tags[i] in user_tags:
@@ -30,13 +30,13 @@ def new_issues(user, tags, degree):
         else:
             user_tags[tags[i]] = 1
 
-        Interacting_Consume_Factor.append(Repeat_Factor ** (-user_tags[tags[i]]))
+        interacting_consume_factor.append(Repeat_Factor ** (-user_tags[tags[i]]))
 
-    user.tags = user_tags
+    user.posttags = user_tags
     user.save()
 
-    print(Interacting_Consume_Factor)
-    return sum([Decimal(i)*Decimal(degree)*user.wealth for i in Interacting_Consume_Factor])
+    print(interacting_consume_factor)
+    return sum([Decimal(i)*Decimal(degree)*user.wealth for i in interacting_consume_factor])
 
 
 if __name__ == "__main__":

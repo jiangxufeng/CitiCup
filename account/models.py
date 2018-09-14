@@ -15,6 +15,7 @@ class LoginUser(AbstractUser):
     job = models.IntegerField(blank=True, default=0)
     company = models.CharField(max_length=128, blank=True, null=True)
     wealth = models.DecimalField(max_digits=40, decimal_places=5, blank=True, null=True)
+    posttags = models.CharField(default="{}", max_length=500)
 
     class Meta:
         db_table = 'LoginUser'
