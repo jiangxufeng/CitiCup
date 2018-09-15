@@ -48,7 +48,7 @@ class PyPostPublishSerializer(ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ('title', 'content', 'tag')
+        fields = ('title', 'content', 'tag', 'degree')
 
 
 class PyPostUpdateSerializer(ModelSerializer):
@@ -73,8 +73,8 @@ class PostListSerializer(HyperlinkedModelSerializer):
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content','tags',
-                  'created_at', 'pid', 'like', 'diss','commentsNum')
+        fields = ('owner', 'username', 'title', 'content', 'tags',
+                  'created_at', 'pid', 'like', 'diss', 'commentsNum', 'degree')
 
     def get_likesNum(self, obj):
         return obj.likes.all().count()
@@ -90,12 +90,12 @@ class PostListSerializer(HyperlinkedModelSerializer):
 class PyPostDetailSerializer(HyperlinkedModelSerializer):
     owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
     username = SerializerMethodField()
-    pid = IntegerField(source='id',read_only=True)
+    pid = IntegerField(source='id', read_only=True)
     tags = TagReturnSerializer(many=True)
 
     class Meta:
         model = Post
-        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'like','diss', 'tags')
+        fields = ('owner', 'username', 'title', 'content', 'created_at', 'pid', 'like','diss', 'tags', 'degree')
 
     def get_username(self, obj):
         return obj.owner.username
@@ -109,7 +109,7 @@ class LikeOrDisDetailSerializer(ModelSerializer):
 
     class Meta:
         model = LikeOrDis
-        fields = ('userprefer','created_at')
+        fields = ('times', 'created_at', 'tags')
 
 
 class LikeOrDisListSerializer(HyperlinkedModelSerializer):
@@ -118,21 +118,21 @@ class LikeOrDisListSerializer(HyperlinkedModelSerializer):
     class Meta:
         model = LikeOrDis
         lookup_field = 'post_id'
-        fields = ('user','userprefer','post_id')
+        fields = ('user','times','post_id')
 
 
 class LikeOrDisPostSerializer(ModelSerializer):
 
     class Meta:
         model = LikeOrDis
-        fields = ('post','userprefer')
+        fields = ('post', 'times', 'tags')
 
 
 class PostCommentPostSerializer(ModelSerializer):
 
     class Meta:
         model = PostComments
-        fields = ('post', 'content')
+        fields = ('post', 'content', 'userprefer', 'tags')
 
 
 class PostCommentListSerializer(HyperlinkedModelSerializer):

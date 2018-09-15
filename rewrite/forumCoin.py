@@ -1,9 +1,9 @@
 # -*- coding:utf-8 -*-
 
-from decimal import Decimal
+from account.models import LoginUser
 
-Repeat_Factor = 30
-Intention_Factor = 50
+Repeat_Factor = 100
+Intention_Factor = 4
 
 
 class ForumCoin(object):
@@ -18,7 +18,7 @@ class ForumCoin(object):
             return None
 
         types = ["post", "like", "comment"][types]
-        u_t = self.user.tags
+        u_t = self.user.alltags
 
         tags = tags.split(";")
         if isinstance(u_t, dict):
@@ -38,7 +38,7 @@ class ForumCoin(object):
 
             interacting_consume_factor.append(Repeat_Factor ** (-user_tags[types][tags[i]]))
 
-        self.user.tags = user_tags
+        self.user.alltags = user_tags
         self.user.save()
         return interacting_consume_factor
 
@@ -47,7 +47,7 @@ class ForumCoin(object):
 
         interacting_consume_factor = self.get_interacting_consume_factor(tags, 0)
 
-        return sum([Decimal(i)*Decimal(degree)*self.user.wealth for i in interacting_consume_factor])
+        return sum([i*degree*self.user.forumcoin for i in interacting_consume_factor])
 
     # 点赞
     def likes(self, tags, click_num):
@@ -56,11 +56,11 @@ class ForumCoin(object):
 
         intention_degree = Intention_Factor * click_num
 
-        return sum([Decimal(i) * Decimal(intention_degree) * self.user.wealth for i in interacting_consume_factor])
+        return sum([i * intention_degree * self.user.forumcoin for i in interacting_consume_factor])
 
     # 评论
     def comment(self, tags, degree):
 
         interacting_consume_factor = self.get_interacting_consume_factor(tags, 2)
 
-        return sum([Decimal(i) * Decimal(degree) * self.user.wealth for i in interacting_consume_factor])
+        return sum([i * degree * self.user.forumcoin for i in interacting_consume_factor])

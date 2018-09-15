@@ -18,17 +18,13 @@ from rest_framework import mixins, generics
 from rest_framework.permissions import AllowAny
 from .models import *
 from rewrite.exceptions import FoundPostFailed
-from account.models import LoginUser
-from rest_framework.authentication import (
-    SessionAuthentication,
-    BasicAuthentication,
-    )
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated,
 )
-from django.http import HttpResponse
+from account.models import *
+from forum.models import *
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly
 from rewrite.authentication import CsrfExemptSessionAuthentication
 from rewrite.pagination import Pagination
@@ -38,6 +34,7 @@ from django.db.models import F
 from datetime import datetime,timedelta
 from django.db.models import Count
 import random
+from rewrite.forumCoin import ForumCoin
 
 # 发帖
 class PostPublishView(generics.GenericAPIView):
@@ -58,7 +55,8 @@ class PostPublishView(generics.GenericAPIView):
             title = serializer.validated_data['title']
             content = serializer.validated_data['content']
             tagids = serializer.validated_data['tag'].split(";")
-            passage = Post.objects.create(title=title, content=content, owner=request.user)
+            degree = serializer.validated_data['degree']
+            passage = Post.objects.create(title=title, content=content, owner=request.user, degree=degree)
             # passage.save()
 
             for i in tagids:
@@ -73,11 +71,23 @@ class PostPublishView(generics.GenericAPIView):
                     return msg
             passage.save()
 
-            msg = Response({
-                'error': 0,
-                'data': PyPostDetailSerializer(passage, context={'request': request}).data,
-                'message': 'Success to publish the post.'
-            }, HTTP_201_CREATED)
+            d = ForumCoin(request.user)
+            coin = d.new_issues(serializer.validated_data['tag'], int(degree))
+            forumcoin = request.user.forumcoin - coin
+
+            if forumcoin>0:
+                LoginUser.objects.filter(id = request.user.id).update(forumcoin=forumcoin)
+                msg = Response({
+                    'error': 0,
+                    'data': PyPostDetailSerializer(passage, context={'request': request}).data,
+                    'message': 'Success to publish the post.'
+                }, HTTP_201_CREATED)
+            else:
+                msg = Response({
+                    'error': 0,
+                    'message': 'You do not have enough forumcoin to publish this post'
+                }, HTTP_400_BAD_REQUEST)
+
             return msg
 
 
@@ -221,8 +231,8 @@ class PostTagListView(APIView):
 
     def get(self,request,tag_id):
         tag = self.get_tag(int(tag_id))
-        queryset = Post.objects.filter(tags = tag_id)
-        s = PostListSerializer(queryset,many=True,context={'request': request})
+        queryset = Post.objects.filter(tags=tag_id)
+        s = PostListSerializer(queryset, many=True, context={'request': request})
         return Response(s.data)
 
 
@@ -245,7 +255,7 @@ class PostImageUploadView(generics.GenericAPIView):
             return msg
 
 
-class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
+class LikeOrDisDetailView(generics.GenericAPIView):
 
     '''
     get:
@@ -265,54 +275,67 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get(self, request, pid):
 
-        queryset = LikeOrDis.objects.filter(post_id = pid,user = request.user)
-        s = LikeOrDisDetailSerializer(queryset,many=True,context={'request': request})
+        queryset = LikeOrDis.objects.filter(post_id=pid, user=request.user)
+        s = LikeOrDisDetailSerializer(queryset, many=True, context={'request': request})
         return Response(s.data)
 
-    def put(self,request,pid):
+    def put(self, request, pid):
 
         s = LikeOrDisDetailSerializer(data=request.data)
         
         if s.is_valid(raise_exception=True):
-            lod = LikeOrDis.objects.filter(post_id=pid ,user_id=request.user.id)
+            lod = LikeOrDis.objects.filter(post_id=pid, user_id=request.user.id)
+
             if lod:
+                times_old = LikeOrDis.objects.get(user=request.user, post_id=pid).times
+                times = s.validated_data['times']
+                tags = s.validated_data['tags']
 
-                prefer_old = LikeOrDis.objects.get(user=request.user, post_id=pid).userprefer
-                userprefer = s.validated_data['userprefer']
-                lod.update(userprefer = userprefer)
+                d = ForumCoin(request.user)
+                coin = d.likes(tags, int(times))
+                forumcoin = request.user.forumcoin - coin
 
-                check = userprefer * prefer_old
-                if check<0:
-                    if userprefer>0:
-                        Post.objects.filter(id=pid).update(like=F('like')+1)
-                        Post.objects.filter(id=pid).update(diss=F('diss')-1)
+                if forumcoin > 0:
+                    LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
 
-                    else:
-                        Post.objects.filter(id=pid).update(like=F('like')-1)
-                        Post.objects.filter(id=pid).update(diss=F('diss')+1)
+                    lod.update(times=times, tags=tags)
 
+                    check = times * times_old
+                    if check < 0:
+                        if times > 0:
+                            Post.objects.filter(id=pid).update(like=F('like') + 1)
+                            Post.objects.filter(id=pid).update(diss=F('diss') - 1)
 
+                        else:
+                            Post.objects.filter(id=pid).update(like=F('like') - 1)
+                            Post.objects.filter(id=pid).update(diss=F('diss') + 1)
 
-                msg = Response({
-                    'error': 0,
-                    'message': 'Success to update'
-                }, HTTP_200_OK)
+                    msg = Response({
+                        'error': 0,
+                        'cost': coin,
+                        'message': 'Success to update'
+                    }, HTTP_200_OK)
+                else:
+                    msg = Response({
+                        'error': 1,
+                        'message': 'Failed to update. You do not have enough forumcoin.'
+                    }, HTTP_400_BAD_REQUEST)
             else:
                 msg = Response({
-                    'error': 0,
+                    'error': 1,
                     'message': 'Failed to update. You do not like it before.'
                 }, HTTP_400_BAD_REQUEST)
         else:
             msg = Response({
-                'error': 0,
+                'error': 1,
                 'message': 'BAD_REQUEST'
             }, HTTP_400_BAD_REQUEST)
         return msg
 
-    def delete(self,request,pid):
+    def delete(self, request, pid):
         try:
             prefer_old = LikeOrDis.objects.get(user=request.user, post_id=pid).userprefer
-            s = LikeOrDis.objects.get(post_id=pid,user_id=request.user.id)
+            s = LikeOrDis.objects.get(post_id=pid, user_id=request.user.id)
             s.delete()
             
             if prefer_old>0:
@@ -332,7 +355,7 @@ class LikeOrDisDetailView(generics.RetrieveUpdateDestroyAPIView):
         return msg
 
 
-class LikeOrDisListView(generics.ListAPIView):
+class LikeOrDisListView(generics.GenericAPIView):
     '''
     get:
         列出这篇文章所有点赞/踩的人
@@ -353,52 +376,103 @@ class LikeOrDisPostView(generics.CreateAPIView):
 
     '''
     post:
-        已登录用户赞/踩一个帖子
-    
+        已登录用户赞/踩一个帖子,同时前端计算好用户连续赞踩次数（最多3次）,一并发送过来（赞发送正数，踩发送负数）
+        增加返回消耗论坛币数。
     '''
 
     authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = LikeOrDisPostSerializer
 
-    def perform_create(self, serializer):
-
-        post = serializer.validated_data['post']
-        prefer = serializer.validated_data['userprefer']
-
-        if prefer>0:
-            Post.objects.filter(id=post.id).update(like=F('like')+1)
-        else:
-            Post.objects.filter(id=post.id).update(diss=F('diss')+1)
-        serializer.save(user=self.request.user)
-
     def post(self, request, *args, **kwargs):
-        post_id = request.data.get('post', '')
-        user = request.user
-        res = LikeOrDis.objects.filter(user=user, post_id=post_id)
+        s = LikeOrDisPostSerializer(data=request.data)
 
-        if res:
-            msg = Response(data={
-                'error': 0000,
-                'message': 'You have already like it.'
-            }, status=HTTP_400_BAD_REQUEST)
-            return msg
+        if s.is_valid(raise_exception=True):
+            post = s.validated_data['post']
+            prefer = s.validated_data['times']
+            tags = s.validated_data['tags']
+            user = request.user
+            res = LikeOrDis.objects.filter(user=user, post_id=post.id)
+
+            if res:
+                msg = Response(data={
+                    'error': 0000,
+                    'message': 'You have already like it.'
+                }, status=HTTP_400_BAD_REQUEST)
+                return msg
+            else:
+                d = ForumCoin(request.user)
+                coin = d.likes(tags, int(prefer))
+                forumcoin = request.user.forumcoin - coin + 500000000
+
+                if forumcoin > 0:
+                    LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
+
+                    LikeOrDis.objects.create(user_id=user.id, post_id=post.id, times=prefer, tags=tags)
+                    if prefer > 0:
+                        Post.objects.filter(id=post.id).update(like=F('like') + 1)
+                    else:
+                        Post.objects.filter(id=post.id).update(diss=F('diss') + 1)
+                    msg = Response({
+                        'error': 0,
+                        'cost': coin,
+                        'message': 'Success to like or diss it'
+                    }, HTTP_201_CREATED)
+                else:
+                    msg = Response({
+                        'error': 1,
+                        'message': 'You do not have enough forumcoin to publish this post'
+                    }, HTTP_400_BAD_REQUEST)
         else:
-            return self.create(request, *args, **kwargs)
+            msg = Response({
+                'error': 1,
+                'message': 'please post it again'
+            }, HTTP_400_BAD_REQUEST)
+
+        return msg
 
 
 class PostCommentsPostView(generics.CreateAPIView):
     '''
     post:
-        已登录用户对一个文章发布评论
+        已登录用户对一个文章发布评论,增加返回论坛币的消耗。发布时必须同时附带tags
     '''
 
     authentication_classes = (CsrfExemptSessionAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = PostCommentPostSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(user = self.request.user)
+    def post(self, request, *args, **kwargs):
+
+        s = PostCommentPostSerializer(data=request.data)
+
+        if s.is_valid(raise_exception=True):
+
+            post = s.validated_data['post']
+            content = s.validated_data['content']
+            userprefer = s.validated_data['userprefer']
+            tags = s.validated_data['tags']
+
+            d = ForumCoin(request.user)
+            coin = d.comment(tags, int(userprefer))
+            forumcoin = request.user.forumcoin - coin
+
+            if forumcoin > 0:
+                LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
+                PostComments.objects.create(user_id=request.user.id, post_id=post.id, content=content, userprefer=userprefer, tags=tags)
+                msg = Response({
+                    'error': 0,
+                    'data': content,
+                    'cost':coin,
+                    'message': 'Success to post the comment'
+                }, HTTP_201_CREATED)
+            else:
+                msg = Response({
+                    'error': 0,
+                    'message': 'You do not have enough forumcoin to post this comments'
+                }, HTTP_400_BAD_REQUEST)
+
+        return msg
 
 
 class PostCommentsListView(generics.GenericAPIView):
@@ -413,8 +487,8 @@ class PostCommentsListView(generics.GenericAPIView):
     authentication_classes = ()
 
     def get(self, request, post_id):
-        queryset = PostComments.objects.filter(post_id = post_id)
-        s = PostCommentListSerializer(queryset,many=True,context={'request': request})
+        queryset = PostComments.objects.filter(post_id=post_id)
+        s = PostCommentListSerializer(queryset, many=True, context={'request': request})
         return Response(s.data)
 
 

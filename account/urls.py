@@ -16,4 +16,5 @@ urlpatterns = [
     url(r'^users/$', LoginUserDetailView.as_view(), name="logedinuser-detail"),
     url(r'^users/logout', UserLogoutView.as_view(),name="user_logout"),
     url(r'^users/update/(?P<uid>\d+)/$', UserUpdateView.as_view(), name="user-update"),
+    url(r'^users/iis/$',UserIIsView.as_view(), name='iis')
 ]

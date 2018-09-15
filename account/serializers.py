@@ -9,7 +9,7 @@ from rest_framework.serializers import (
     Serializer,
     CharField,
 )
-from .models import LoginUser
+from .models import LoginUser,UserIIS
 from rewrite.exceptions import IllegalPhone
 
 
@@ -44,25 +44,27 @@ class UserRegisterSerializer(ModelSerializer):
 class UserLoginSerializer(SendVerificationCodeSerializer):
     code = IntegerField()
 
-#用户登录(账号密码登录)
+
+# 用户登录(账号密码登录)
 class UserLogin2Serializer(ModelSerializer):
     username = CharField(max_length=100)
 
     class Meta:
         model = LoginUser
-        fields = ('username','password')
+        fields = ('username', 'password')
+
 
 class UserUpdateSerializer(ModelSerializer):
 
     class Meta:
         model = LoginUser
-        fields = ('username','first_name','last_name','email',
-            'address','major','job','company','wealth')
+        fields = ('username', 'first_name', 'last_name', 'email',
+                  'address', 'major', 'job', 'company', 'wealth')
 
-#logout
+
+# logout
 class UserLogoutSerializer(Serializer):
     pass
-
 
 
 # 用户信息
@@ -73,9 +75,25 @@ class UserDetailSerializer(ModelSerializer):
         model = LoginUser
         fields = ('username', 'uid')
 
-#登录用户详情
+
+# 登录用户详情
 class LoginUserDetailSerializer(ModelSerializer):
 
     class Meta:
         model = LoginUser
-        exclude = ['password','groups','user_permissions']
+        exclude = ['password', 'groups', 'user_permissions']
+
+
+# class UserIISDetailSerializer(serializer):
+#
+#     def unpack(self, ob):
+#         dics = eval(ob)
+#         return dics
+#
+#     buy =
+#
+#
+#     class Meta:
+#         model = UserIIS
+#         fields = ('buy', 'sell', 'month_get',
+#                   'month_rate', 'year_rate', 'days')

@@ -11,6 +11,7 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
 )
+from datetime import datetime,timedelta
 from django.contrib.auth import login,logout,authenticate
 from rest_framework.permissions import (
     AllowAny,
@@ -18,7 +19,7 @@ from rest_framework.permissions import (
 )
 from django.middleware.csrf import get_token
 from rewrite.exceptions import UserDoesNotExist, PhoneExist, UsernameExist
-from django.http import Http404
+from django.http import Http404,HttpResponse
 from rest_framework import mixins
 from rest_framework import generics
 from .message import send_sms
@@ -262,5 +263,45 @@ class LoginUserDetailView(generics.GenericAPIView):
                 'error': 0,
                 'message': 'Please Login'
             }, status=HTTP_400_BAD_REQUEST )
+        return msg
+
+
+class UserIIsView(APIView):
+    """用户推荐投资展示，展示出推荐用户买的十支股票，以及预计卖出，预计月收益，预计月收益率，年化收益率"""
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
+
+    def get(self, request):
+        today = datetime.now()
+        day = today.strftime('%Y-%m-%d')
+        q = UserIIS.objects.filter(user_id=request.user.id)
+
+        if q:
+            while True:
+                try:
+                    q = UserIIS.objects.filter(days=day, user_id=request.user.id)
+                    data = {}
+                    data['buy'] = eval(q[0].buys)
+                    data['sell'] = eval(q[0].sells)
+                    data['month_get'] = q[0].month_get
+                    data['month_rate'] = q[0].month_rate
+                    data['year_rate'] = q[0].year_rate
+                    data['days'] = q[0].days
+                    break
+                except:
+                    today = today - timedelta(days=1)
+                    day = today.strftime('%Y-%m-%d')
+
+            msg = Response(data={
+                'error': 0,
+                'data': data,
+                'message': 'Success to list '
+            }, status=HTTP_200_OK)
+        else:
+            msg = Response(data={
+                'error': 1,
+                'message': '还没有足够的数据，先完善数据明天来看看吧'
+            }, status=HTTP_400_BAD_REQUEST)
+
         return msg
 

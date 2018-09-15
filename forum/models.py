@@ -24,11 +24,14 @@ class Post(models.Model):
     # view times
     viewtimes = models.IntegerField(default=0, null=False)
     # 标签
-    tags = models.ManyToManyField("Tag", verbose_name="tags", null=True)
+    tags = models.CharField(max_length=128, default='')
     # like
     like = models.IntegerField(default=0,null=False)
     # dislike
     diss = models.IntegerField(default=0,null=False)
+    # degree
+    degree = models.IntegerField(default=0,null=False)
+
 
     def __str__(self):
         return self.title
@@ -63,6 +66,7 @@ class PostComments(models.Model):
     post = models.ForeignKey("Post", related_name='comments', null=False, blank=False)
     content = models.TextField(verbose_name="postContent", default="")
     created_at = models.DateTimeField(auto_now=True)
+    tags = models.CharField(max_length=128, default='')
     userprefer = models.IntegerField(default=0)
 
     def __str__(self):
@@ -73,7 +77,8 @@ class LikeOrDis(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='likeuser', null=False, blank=False)
     post = models.ForeignKey("Post", related_name='likes', null=False, blank=False)
-    userprefer = models.IntegerField(default=0)
+    times = models.IntegerField(default=0)
+    tags = models.CharField(max_length=128, default='')
     created_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
