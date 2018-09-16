@@ -59,7 +59,7 @@ class UserUpdateSerializer(ModelSerializer):
     class Meta:
         model = LoginUser
         fields = ('username', 'first_name', 'last_name', 'email',
-                  'address', 'major', 'job', 'company', 'wealth')
+                  'address', 'major', 'job', 'company', 'wealth', 'risk_preference')
 
 
 # logout

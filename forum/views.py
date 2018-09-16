@@ -174,6 +174,7 @@ class PostOfUserListView(generics.ListAPIView):
         queryset = Post.objects.filter(owner=user)
         return queryset.order_by('-created_at')
 
+
 class PostNewListView(generics.ListAPIView):
     '''新发布的文章，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页链接。'''
     permission_classes = (AllowAny,)
@@ -184,6 +185,7 @@ class PostNewListView(generics.ListAPIView):
         queryset = Post.objects.all().order_by('-created_at')[:40]
         return queryset
 
+
 class PostHotListView(generics.ListAPIView):
     '''最热文章(点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中有下一页 链接。'''
     permission_classes = (AllowAny,)
@@ -192,8 +194,9 @@ class PostHotListView(generics.ListAPIView):
 
     def get_queryset(self):
 
-        queryset = Post.objects.all().order_by('like')[:40]
+        queryset = Post.objects.all().order_by('-like')[:40]
         return queryset
+
 
 class PostRecentHotListView(generics.ListAPIView):
     '''热榜文章(最近三天点赞数最多)，每页10条，后面接 ?page=1 则为第一页。返回信息中 有下一页链接。'''
@@ -206,7 +209,7 @@ class PostRecentHotListView(generics.ListAPIView):
         today = datetime.now()
         
         likes = LikeOrDis.objects.filter(created_at__range=(today - timedelta(days=3),today)). \
-            exclude(userprefer__contains='-').values('post_id'). \
+            exclude(times__contains='-').values('post_id'). \
             annotate(count=Count('id')).order_by('-count').values('post')
 
         post_ids = [] 
