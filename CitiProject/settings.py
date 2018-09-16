@@ -173,6 +173,7 @@ STATIC_URL = '/api/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace("\\", "/")
 MEDIA_URL = PREFIX_URL + QINIU_BUCKET_DOMAIN + '/media/'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'collected_static')
 
 # 跨域访问配置
 CORS_ALLOW_CREDENTIALS = True

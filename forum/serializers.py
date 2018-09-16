@@ -64,7 +64,7 @@ class PostListSerializer(HyperlinkedModelSerializer):
     username = SerializerMethodField()
     commentsNum = SerializerMethodField()
     pid = IntegerField(source='id')
-    tags = TagReturnSerializer(many=True)
+    #tags = TagReturnSerializer(many=True)
 
     @staticmethod
     def setup_eager_loading(queryset):
@@ -91,7 +91,7 @@ class PyPostDetailSerializer(HyperlinkedModelSerializer):
     owner = HyperlinkedRelatedField(view_name="loginuser-detail", read_only=True)
     username = SerializerMethodField()
     pid = IntegerField(source='id', read_only=True)
-    tags = TagReturnSerializer(many=True)
+    #tags = TagReturnSerializer(many=True)
 
     class Meta:
         model = Post

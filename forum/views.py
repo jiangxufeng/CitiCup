@@ -35,6 +35,7 @@ from datetime import datetime,timedelta
 from django.db.models import Count
 import random
 from rewrite.forumCoin import ForumCoin
+from traceback import print_exc
 
 # 发帖
 class PostPublishView(generics.GenericAPIView):
@@ -42,9 +43,9 @@ class PostPublishView(generics.GenericAPIView):
     serializer_class = PyPostPublishSerializer
     authentication_classes = (CsrfExemptSessionAuthentication,)
 
-    def get_tag(self, tag_id):
+    def get_tag(self, tag_name):
         try:
-            return Tag.objects.get(id=tag_id)
+            return Tag.objects.get(name=tag_name)
         except Tag.DoesNotExist:
             raise NotFound("30004Not found the tag.")
 
@@ -54,32 +55,33 @@ class PostPublishView(generics.GenericAPIView):
         if serializer.is_valid(raise_exception=True):
             title = serializer.validated_data['title']
             content = serializer.validated_data['content']
-            tagids = serializer.validated_data['tag'].split(";")
+            tags = serializer.validated_data['tag']
             degree = serializer.validated_data['degree']
-            passage = Post.objects.create(title=title, content=content, owner=request.user, degree=degree)
-            # passage.save()
-
-            for i in tagids:
-                try:
-                    tag = self.get_tag(int(i))
-                    passage.tags.add(tag)  
-                except:
-                    msg = Response({
-                    'error': 1,
-                    'message': 'Tag(Tag id,int) is separated by comma'
-                    }, HTTP_400_BAD_REQUEST)
-                    return msg
-            passage.save()
 
             d = ForumCoin(request.user)
-            coin = d.new_issues(serializer.validated_data['tag'], int(degree))
+            coin = d.new_issues(tags, int(degree))
             forumcoin = request.user.forumcoin - coin
 
-            if forumcoin>0:
-                LoginUser.objects.filter(id = request.user.id).update(forumcoin=forumcoin)
+            tagids = serializer.validated_data['tag'].split(";")
+            if forumcoin > 0:
+                for i in tagids:
+                    try:
+                        self.get_tag(i)
+                    except:
+                        print_exc()
+                        msg = Response({
+                            'error': 1,
+                            'message': 'Tag请用;隔开,请不要提交未知Tag名'
+                        }, HTTP_400_BAD_REQUEST)
+                        return msg
+                passage = Post.objects.create(title=title, content=content, owner=request.user, degree=degree, tags=tags)
+                passage.save()
+                LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
+                History.objects.create(user=request.user, operation=1, income=-coin, to=passage, tags=tags)
                 msg = Response({
                     'error': 0,
                     'data': PyPostDetailSerializer(passage, context={'request': request}).data,
+                    'cost':coin,
                     'message': 'Success to publish the post.'
                 }, HTTP_201_CREATED)
             else:
@@ -387,6 +389,13 @@ class LikeOrDisPostView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = LikeOrDisPostSerializer
 
+    def get_tag(self, tag_name):
+        try:
+            return Tag.objects.get(name=tag_name)
+        except Tag.DoesNotExist:
+            raise NotFound("30004Not found the tag.")
+
+
     def post(self, request, *args, **kwargs):
         s = LikeOrDisPostSerializer(data=request.data)
 
@@ -406,16 +415,30 @@ class LikeOrDisPostView(generics.CreateAPIView):
             else:
                 d = ForumCoin(request.user)
                 coin = d.likes(tags, int(prefer))
-                forumcoin = request.user.forumcoin - coin + 500000000
+                forumcoin = request.user.forumcoin - coin
 
+                tagids = s.validated_data['tags'].split(";")
                 if forumcoin > 0:
+                    for i in tagids:
+                        try:
+                            self.get_tag(i)
+                        except:
+                            print_exc()
+                            msg = Response({
+                                'error': 1,
+                                'message': 'Tag请用;隔开,请不要提交未知Tag名'
+                            }, HTTP_400_BAD_REQUEST)
+                            return msg
+
                     LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
 
                     LikeOrDis.objects.create(user_id=user.id, post_id=post.id, times=prefer, tags=tags)
                     if prefer > 0:
                         Post.objects.filter(id=post.id).update(like=F('like') + 1)
+                        History.objects.create(user_id=user.id, operation=2, income=-coin, to_id=post.id, tags=tags)
                     else:
                         Post.objects.filter(id=post.id).update(diss=F('diss') + 1)
+                        History.objects.create(user_id=user.id, operation=3, income=-coin, to_id=post.id, tags=tags)
                     msg = Response({
                         'error': 0,
                         'cost': coin,
@@ -445,6 +468,12 @@ class PostCommentsPostView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = PostCommentPostSerializer
 
+    def get_tag(self, tag_name):
+        try:
+            return Tag.objects.get(name=tag_name)
+        except Tag.DoesNotExist:
+            raise NotFound("30004Not found the tag.")
+
     def post(self, request, *args, **kwargs):
 
         s = PostCommentPostSerializer(data=request.data)
@@ -460,13 +489,26 @@ class PostCommentsPostView(generics.CreateAPIView):
             coin = d.comment(tags, int(userprefer))
             forumcoin = request.user.forumcoin - coin
 
+            tagids = s.validated_data['tags'].split(";")
             if forumcoin > 0:
+                for i in tagids:
+                    try:
+                        self.get_tag(i)
+                    except:
+                        print_exc()
+                        msg = Response({
+                            'error': 1,
+                            'message': 'Tag请用;隔开,请不要提交未知Tag名'
+                        }, HTTP_400_BAD_REQUEST)
+                        return msg
+
                 LoginUser.objects.filter(id=request.user.id).update(forumcoin=forumcoin)
                 PostComments.objects.create(user_id=request.user.id, post_id=post.id, content=content, userprefer=userprefer, tags=tags)
+                History.objects.create(user_id=request.user.id, operation=4, income=-coin, to_id=post.id, tags=tags)
                 msg = Response({
                     'error': 0,
                     'data': content,
-                    'cost':coin,
+                    'cost': coin,
                     'message': 'Success to post the comment'
                 }, HTTP_201_CREATED)
             else:
