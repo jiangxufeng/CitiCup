@@ -34,15 +34,17 @@ class SendVerificationCodeSerializer(Serializer):
 # 用户注册
 class UserRegisterSerializer(ModelSerializer):
     code = IntegerField()
+    verify = CharField()
 
     class Meta:
         model = LoginUser
-        fields = ('username', 'password', 'phone', 'code',)
+        fields = ('username', 'password', 'phone', 'code', 'verify')
 
 
 # 用户登录(使用手机号接受验证码）
 class UserLoginSerializer(SendVerificationCodeSerializer):
     code = IntegerField()
+    verify = CharField()
 
 
 # 用户登录(账号密码登录)
