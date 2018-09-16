@@ -53,7 +53,7 @@ class SendVerificationCodeView(generics.GenericAPIView):
                 send_sms(business_id, phone, "计6", "SMS_142148460", params)  # 发送验证码
                # request.session['verifycode'] = code
                 msg = Response({
-                   'data': md5(code.encode()).hexdigest()
+                   'data': md5(md5(str(code).encode()).hexdigest().encode()).hexdigest(),
                 }, status=HTTP_204_NO_CONTENT)
             except:
                 msg = Response({
@@ -89,7 +89,7 @@ class UserRegisterView(generics.GenericAPIView):
             phone = serializer.validated_data['phone']
             verify = serializer.validated_data['verify']
             if self.has_exist(types='phone', param=phone) and self.has_exist(types='username', param=username):
-                if md5(vcode.encode()).hexdigest() == verify:
+                if md5(md5(vcode.encode()).hexdigest().encode()).hexdigest() == verify:
                     user = LoginUser.objects.create_user(username=username, password=password, phone=phone)
                     user.save()
                     msg = Response({
@@ -137,7 +137,7 @@ class UserLoginView(generics.GenericAPIView):
             vcode = serializer.validated_data['code']
             verify = serializer.validated_data['verify']
 
-            if md5(vcode.encode()).hexdigest() == verify:
+            if md5(md5(vcode.encode()).hexdigest().encode()).hexdigest() == verify:
                 user = self.get_user(phone)
                 login(request, user)
                 # return HttpResponseRedirect(reverse("user:loginview"))
