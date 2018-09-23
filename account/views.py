@@ -34,7 +34,8 @@ import uuid
 import random
 import json
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly,IsLoginUserOrReadOnly
-
+from hashlib import md5
+import uuid
 
 # 发送验证码
 class SendVerificationCodeView(generics.GenericAPIView):
@@ -50,8 +51,9 @@ class SendVerificationCodeView(generics.GenericAPIView):
             params = json.dumps({"code": code})
             try:
                 send_sms(business_id, phone, "计6", "SMS_142148460", params)  # 发送验证码
-                request.session['verifycode'] = code
-                msg = Response(status=HTTP_204_NO_CONTENT)
+                msg = Response({
+                    'data': md5((str(code)))
+                }, status=HTTP_204_NO_CONTENT)
             except:
                 msg = Response({
                     'error': 70000,
