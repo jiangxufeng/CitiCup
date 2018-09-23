@@ -35,7 +35,11 @@ import random
 import json
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly,IsLoginUserOrReadOnly
 from hashlib import md5
+<<<<<<< HEAD
 import uuid
+=======
+
+>>>>>>> 44b8ef5c37d74d200bdd377cd3c9e7cd1a4602b3
 
 # 发送验证码
 class SendVerificationCodeView(generics.GenericAPIView):
@@ -86,31 +90,22 @@ class UserRegisterView(generics.GenericAPIView):
             password = serializer.validated_data['password']
             vcode = serializer.validated_data['code']
             phone = serializer.validated_data['phone']
+            verify = serializer.validated_data['verify']
             if self.has_exist(types='phone', param=phone) and self.has_exist(types='username', param=username):
-                try:
-                    verify_code = request.session['verifycode']
-                except:
+                if md5(md5(vcode.encode()).hexdigest().encode()).hexdigest() == verify:
+                    user = LoginUser.objects.create_user(username=username, password=password, phone=phone)
+                    user.save()
                     msg = Response({
-                        'error': 70001,
-                        'error_msg': "验证码已失效，请重新发送"
-                    }, status=HTTP_400_BAD_REQUEST)
-                    return msg
+                        'error': 0,
+                        'data': {"username": username, "uid": user.id},
+                        'message': 'Success to register.'
+                    }, HTTP_201_CREATED)
                 else:
-                    if vcode == verify_code:
-                        user = LoginUser.objects.create_user(username=username, password=password, phone=phone)
-                        user.save()
-                        del request.session['verifycode']
-                        msg = Response({
-                            'error': 0,
-                            'data': {"username": username, "uid": user.id},
-                            'message': 'Success to register.'
-                        }, HTTP_201_CREATED)
-                    else:
-                        msg = Response({
-                            'error': 70002,
-                            'error_msg': '验证码错误.'
-                        }, HTTP_400_BAD_REQUEST)
-                    return msg
+                    msg = Response({
+                        'error': 70002,
+                        'error_msg': '验证码错误.'
+                    }, HTTP_400_BAD_REQUEST)
+                return msg
 
 
 class UserUpdateView(generics.UpdateAPIView):
@@ -143,31 +138,23 @@ class UserLoginView(generics.GenericAPIView):
         if serializer.is_valid(raise_exception=True):
             phone = serializer.validated_data['phone']
             vcode = serializer.validated_data['code']
-            try:
-                verify_code = request.session['verifycode']
-            except:
+            verify = serializer.validated_data['verify']
+
+            if md5(md5(vcode.encode()).hexdigest().encode()).hexdigest() == verify:
+                user = self.get_user(phone)
+                login(request, user)
+                # return HttpResponseRedirect(reverse("user:loginview"))
                 msg = Response({
-                    'error': 70001,
-                    'error_msg': "验证码已失效，请重新发送"
-                }, status=HTTP_400_BAD_REQUEST)
-                return msg
+                    'error': 0,
+                    'data': {"username": user.username, "uid": user.id},
+                    'message': 'Success to login.'
+                }, HTTP_200_OK)
             else:
-                if vcode == verify_code:
-                    user = self.get_user(phone)
-                    login(request, user)
-                    del request.session['verifycode']
-                    # return HttpResponseRedirect(reverse("user:loginview"))
-                    msg = Response({
-                        'error': 0,
-                        'data': {"username": user.username, "uid": user.id},
-                        'message': 'Success to login.'
-                    }, HTTP_200_OK)
-                else:
-                    msg = Response({
-                        'error': 70002,
-                        'error_msg': '验证码错误.'
-                    }, HTTP_400_BAD_REQUEST)
-                return msg
+                msg = Response({
+                    'error': 70002,
+                    'error_msg': '验证码错误.'
+                }, HTTP_400_BAD_REQUEST)
+            return msg
 
 class UserLogin2View(generics.GenericAPIView):
     permission_classes = (AllowAny,)
