@@ -52,7 +52,7 @@ class SendVerificationCodeView(generics.GenericAPIView):
             try:
                 send_sms(business_id, phone, "计6", "SMS_142148460", params)  # 发送验证码
                 msg = Response({
-                    'data': md5((str(code)))
+                    'data': md5(md5(str(code).encode()).hexdigest().encode()).hexdigest()
                 }, status=HTTP_204_NO_CONTENT)
             except:
                 msg = Response({

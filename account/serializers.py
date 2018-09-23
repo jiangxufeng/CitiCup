@@ -33,7 +33,7 @@ class SendVerificationCodeSerializer(Serializer):
 
 # 用户注册
 class UserRegisterSerializer(ModelSerializer):
-    code = IntegerField()
+    code = CharField()
     verify = CharField()
 
     class Meta:
@@ -43,7 +43,7 @@ class UserRegisterSerializer(ModelSerializer):
 
 # 用户登录(使用手机号接受验证码）
 class UserLoginSerializer(SendVerificationCodeSerializer):
-    code = IntegerField()
+    code = CharField()
     verify = CharField()
 
 
