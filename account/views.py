@@ -35,11 +35,7 @@ import random
 import json
 from account.permissions import IsOwnerOrReadOnly,IsUserOrReadOnly,IsLoginUserOrReadOnly
 from hashlib import md5
-<<<<<<< HEAD
-import uuid
-=======
 
->>>>>>> 44b8ef5c37d74d200bdd377cd3c9e7cd1a4602b3
 
 # 发送验证码
 class SendVerificationCodeView(generics.GenericAPIView):
